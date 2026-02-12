@@ -542,6 +542,8 @@ struct WebViewDelegateClass final : public ObjCClass<NSObject>
                                    @"Content-Type" : juceStringToNS (resource->mimeType),
                                } mutableCopy];
 
+                               [headers setObject:@"no-store" forKey:@"Cache-Control"];
+
                                if (auto allowedOrigin = connector->getOptions().getAllowedOrigin())
                                {
                                    [headers setObject:juceStringToNS (*allowedOrigin)
