@@ -422,7 +422,27 @@ public:
         // We also need to escape the ' character since we use this to delimit the parameter string
         // to emitByBackend.
         const auto objectAsString = JSON::toString (object, true);
-        const auto escaped = objectAsString.replace ("\\", "\\\\").replace ("'", "\\'");
+
+        // ONE PASS. String::replace copies the whole string once per match,
+        // which is quadratic: a few hundred KB of JSON holding JSON (every
+        // quote escaped) blocked the message thread for tens of seconds.
+        // '\\' and '\'' are ASCII, so they never occur inside a multi-byte
+        // UTF-8 sequence and the bytes can be walked directly.
+        const char* src = objectAsString.toRawUTF8();
+        const auto srcLen = std::strlen (src);
+        std::string out;
+        out.reserve (srcLen + srcLen / 8 + 16);
+
+        for (size_t i = 0; i < srcLen; ++i)
+        {
+            const char c = src[i];
+
+            if (c == '\\')     out += "\\\\";
+            else if (c == '\'') out += "\\'";
+            else                out += c;
+        }
+
+        const auto escaped = String::fromUTF8 (out.data(), (int) out.size());
 
         evaluateJavascript ("window.__JUCE__.backend.emitByBackend(" + eventId.toString().quoted() + ", "
                                 + escaped.quoted ('\'')
